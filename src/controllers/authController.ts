@@ -1,9 +1,22 @@
 import type { Request, Response } from 'express';
+import { Types } from 'mongoose';
 import User from '@/models/user';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+import { successResponse } from '@/utils/response';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+
+interface IUserResponse {
+  _id: Types.ObjectId;
+  name: string;
+  email: string;
+}
+
+interface ILoginResponse {
+  token: string;
+  user: IUserResponse;
+}
 
 export const register = async (req: Request, res: Response) => {
     try {
@@ -19,7 +32,7 @@ export const register = async (req: Request, res: Response) => {
         await user.save();
 
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1d' });
-        res.status(201).json({ token, user: { _id: user._id, name, email } });
+        res.json(successResponse<ILoginResponse>({ token, user: { _id: user._id, name: user.name, email } }));
     } catch (error) {
         res.status(500).json({ message: 'Server Error', error });
     }
@@ -36,7 +49,7 @@ export const login = async (req: Request, res: Response) => {
         if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '1d' });
-        res.json({ token, user: { _id: user._id, name: user.name, email } });
+        res.json(successResponse<ILoginResponse>({ token, user: { _id: user._id, name: user.name, email } }));
     } catch (error) {
         res.status(500).json({ message: 'Server Error' });
     }
@@ -51,7 +64,7 @@ export const getMe = async (req: Request, res: Response) => {
     const user = await User.findById(userId).select('name email').lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    res.json({ user });
+    res.json(successResponse<IUserResponse>(user));
   } catch (error) {
     res.status(500).json({ message: 'Server Error', error });
   }
